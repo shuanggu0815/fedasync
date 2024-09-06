@@ -16,14 +16,12 @@ import os.path
 import torch
 import numpy as np
 from utils.pt_constants import PTConstants
-from trainer.simple_network import SimpleNetwork
-from trainer.resnet import ResNet, BasicBlock
 from torch import nn
 from torch.optim import SGD
 from torch.utils.data import DataLoader, Subset
 from torchvision.datasets import CIFAR10
-from torchvision.transforms import Compose, Normalize, ToTensor,RandomHorizontalFlip,RandomCrop
-
+from torchvision.transforms import Compose, Normalize, ToTensor,RandomHorizontalFlip,Resize
+from torchvision import models
 from nvflare.apis.dxo import DXO, DataKind, MetaKey, from_shareable
 from nvflare.apis.executor import Executor
 from nvflare.apis.fl_constant import ReservedKey, ReturnCode
@@ -68,8 +66,9 @@ class Cifar10Trainer(Executor):
         self._exclude_vars = exclude_vars
 
         # Training setup
-        self.model = ResNet(BasicBlock, [2,2,2,2], 10)
-        # self.model = SimpleNetwork()
+        self.model = models.resnet.resnet18(weights=models.resnet.ResNet18_Weights.IMAGENET1K_V1)
+        in_fea = self.model.fc.in_features
+        self.model.fc = nn.Linear(in_fea, 10) 
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
         self.loss = nn.CrossEntropyLoss()
@@ -79,14 +78,15 @@ class Cifar10Trainer(Executor):
         transforms_train = Compose(
             [
                 ToTensor(),
+                Resize(224),
                 RandomHorizontalFlip(),
-                RandomCrop(32, padding=4),
                 Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),  
             ]
         )
         transforms = Compose(
             [
                 ToTensor(),
+                Resize(224),
                 Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),  
             ]
         )

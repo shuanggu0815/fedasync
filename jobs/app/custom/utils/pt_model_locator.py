@@ -16,9 +16,8 @@ import os
 from typing import List, Union
 
 import torch.cuda
-
+from torchvision import models
 from utils.pt_constants import PTConstants
-from trainer.simple_network import SimpleNetwork
 
 from nvflare.apis.dxo import DXO
 from nvflare.apis.fl_context import FLContext
@@ -30,7 +29,9 @@ from nvflare.app_opt.pt.model_persistence_format_manager import PTModelPersisten
 class PTModelLocator(ModelLocator):
     def __init__(self):
         super().__init__()
-        self.model = SimpleNetwork()
+        self.model = models.resnet.resnet18(weights=models.resnet.ResNet18_Weights.IMAGENET1K_V1)
+        in_fea = self.model.fc.in_features
+        self.model.fc = torch.nn.Linear(in_fea, 10) 
 
     def get_model_names(self, fl_ctx: FLContext) -> List[str]:
         return [PTConstants.PTServerName]

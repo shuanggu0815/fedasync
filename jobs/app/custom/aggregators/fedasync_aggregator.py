@@ -14,6 +14,7 @@
 
 from typing import Any, Dict, Union, Optional, Tuple
 from nvflare.apis.dxo import DXO, DataKind, from_shareable
+from nvflare.apis.event_type import EventType
 from nvflare.apis.fl_constant import ReservedKey, ReturnCode
 from nvflare.apis.fl_context import FLContext
 from nvflare.apis.shareable import Shareable
@@ -68,8 +69,7 @@ class FedAsyncAggregator(Aggregator):
                 DataKind for DXO. Defaults to DataKind.WEIGHT_DIFF
                 Can be one DataKind or a dict of {dxo_name: DataKind} corresponding to each aggregated DXO
                 when processing a DXO of `DataKind.COLLECTION`. Only the keys in this dict will be processed.
-            staleness (str): Method to calculate staleness during aggregation. Defaults to'const'.
-                Options include "const", "hinge", and "poly", each corresponding to specific calculations as described in the paper.
+            config_staleness_filename (str): configure file for calculating staleness
             weigh_by_local_iter (bool, optional): Whether to weight the contributions by the number of iterations
                 performed in local training in the current round. Defaults to `False`.
                 
@@ -82,6 +82,18 @@ class FedAsyncAggregator(Aggregator):
         self._single_dxo_key = ""
         self._weigh_by_local_iter = weigh_by_local_iter
         self.config_staleness_filename = config_staleness_filename
+        self.aggregation_weights = aggregation_weights
+        self.exclude_vars = exclude_vars
+        self.expected_data_kind = expected_data_kind
+
+    def handle_event(self, event_type: str, fl_ctx: FLContext):
+        # _initialize() can not be called from the constructor. Because it changes the data, even the data format
+        # of the aggregation_weights and exclude_vars parameters. Inspect could not figure out the passed in
+        # parameters when re-construct the object creation configuration.
+        if event_type == EventType.START_RUN:
+            self._initialize(self.aggregation_weights, self.exclude_vars, self.expected_data_kind)
+
+    def _initialize(self, aggregation_weights, exclude_vars, expected_data_kind):
         # Check expected data kind
         if isinstance(expected_data_kind, dict):
             for k, v in expected_data_kind.items():
@@ -212,7 +224,7 @@ class FedAsyncAggregator(Aggregator):
                 continue
 
             accepted = self.dxo_aggregators[key].accept(
-                dxo=sub_dxo, contributor_name=contributor_name, contribution_round=contribution_round, fl_ctx=fl_ctx, site_round=self.site_round[contributor_name]
+                dxo=sub_dxo, contributor_name=contributor_name, contribution_round=contribution_round, fl_ctx=fl_ctx
             )
             if not accepted:
                 return False

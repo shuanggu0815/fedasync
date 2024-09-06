@@ -44,7 +44,7 @@ class AsyncAggregationHelper(object):
     def reset_stats(self):
         self.history = deque()
 
-    def add(self, data, weight, contributor_name, contribution_round, site_round):
+    def add(self, data, weight, contributor_name, contribution_round):
         """Compute weighted sum and sum of weights."""
         with self.lock:
             for k, v in data.items():
@@ -60,7 +60,6 @@ class AsyncAggregationHelper(object):
             {
                 "contributor_name": contributor_name,
                 "round": contribution_round,
-                "site_round": site_round,
                 "weight": weight,
             }
         )
@@ -72,7 +71,6 @@ class AsyncAggregationHelper(object):
         with self.lock:
             current_aggregate_weight = self.weight_list.popleft()
             current_aggregate_client = self.history.popleft()
-            # site_round = current_aggregate_client["site_round"]
 
             alpha_t = self.func_s(fl_ctx=fl_ctx, current_round=current_round, aggregate_client=current_aggregate_client, config_staleness_filename=config_staleness_filename)
             print(alpha_t)
@@ -98,23 +96,18 @@ class AsyncAggregationHelper(object):
         with open(staleness_config_path) as file:
             config_info = json.load(file)
         
-        site_round = aggregate_client["site_round"]
+        contribution_round = aggregate_client["round"]
         site_name = aggregate_client["contributor_name"]
         staleness = config_info["staleness"]
         alpha = config_info["alpha"]
         a = config_info["a"]
-        b = config_info["b"]
         if staleness=="const":
             return alpha*1
         if staleness=="data_weighted":
             return config_info["weights"].get(site_name)
         if staleness=="poly":
-            return alpha/pow(current_round-site_round + 1,a)
-        if staleness=="hinge":
-            if current_round-site_round > b:
-                return alpha/(float(current_round - site_round - b)*a + 1)
-            else:
-                return alpha*1
+            return alpha/pow(current_round-contribution_round + 1,a)
+        
 
         
     def get_history(self):

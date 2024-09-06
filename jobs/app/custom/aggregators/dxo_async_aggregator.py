@@ -65,14 +65,13 @@ class DXOAsyncAggregator(FLComponent):
         if self.aggregation_helper:
             self.aggregation_helper.reset_stats()
 
-    def accept(self, dxo: DXO, contributor_name, contribution_round, fl_ctx: FLContext, site_round: Optional[dict]={}) -> bool:
+    def accept(self, dxo: DXO, contributor_name, contribution_round, fl_ctx: FLContext) -> bool:
         """Store DXO and update aggregator's internal state
         Args:
             dxo: information from contributor
             contributor_name: name of the contributor
             contribution_round: round of the contribution
             fl_ctx: context provided by workflow
-            site_round
         Returns:
             The boolean to indicate if DXO is accepted.
         """
@@ -149,8 +148,7 @@ class DXOAsyncAggregator(FLComponent):
 
         # aggregate
         self.log_info(fl_ctx,f"weight each iter: {aggregation_weight * float_n_iter}")
-        self.log_info(fl_ctx,f"contribution_round: {contribution_round}, site_round: {site_round}")
-        self.aggregation_helper.add(data, aggregation_weight * float_n_iter, contributor_name, contribution_round, site_round)
+        self.aggregation_helper.add(data, aggregation_weight * float_n_iter, contributor_name, contribution_round)
         self.log_debug(fl_ctx, "End accept")
         return True
 
@@ -174,8 +172,7 @@ class DXOAsyncAggregator(FLComponent):
         self.log_debug(fl_ctx, f"complete history {self.aggregation_helper.get_len()}")
         agg_client, aggregated_dict = self.aggregation_helper.get_result(fl_ctx, dict_global_weight,current_round, config_staleness_filename)
         contributor_name = agg_client["contributor_name"]
-        site_round = agg_client["site_round"]
-        self.log_info(fl_ctx, f"aggregate {contributor_name}'s(site_round:{site_round}) weights at round {current_round}")
+        self.log_info(fl_ctx, f"aggregate {contributor_name}'s weights at round {current_round}")
         self.log_debug(fl_ctx, "End aggregation")
 
         dxo = DXO(data_kind=self.expected_data_kind, data=aggregated_dict)

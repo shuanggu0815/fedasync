@@ -1,7 +1,7 @@
 # Asynchronous Federated Learning Example
 
 ## Introduction
-This example illustrates the implementation of asynchronous federated learning based on the NVFlare architecture. In asynchronous federated learning, each client can independently update its model and send it to the server without waiting for other clients. The server aggregates the global model and local models using weighted methods. This example provides four different methods for calculating aggregation weights: `constant`, `hinge`, `polynomial`, and `data_weighted`. The first three methods are derived from the paper [Asynchronous Federated Optimization](https://opt-ml.org/oldopt/papers/2020/paper_28.pdf), while the `data_weighted` method determines the aggregation weight based on the amount of data at each client.
+This example illustrates the implementation of asynchronous federated learning based on the NVFlare architecture. In asynchronous federated learning, each client can independently update its model and send it to the server without waiting for other clients. The server aggregates the global model and local models using weighted methods. This example provides three different methods for calculating aggregation weights: `constant`, `polynomial`, and `data_weighted`. In this example, we apply these methods to classify images from the CIFAR-10 dataset.
 
 ## Asynchronous Federated Learning Workflow
 In asynchronous federated learning, the interaction between the server and clients is more flexible, allowing for continuous model updates without the need for synchronization. The workflow is as follows:
@@ -29,7 +29,7 @@ To implement asynchronous federated learning, this example replaces the original
 
 ### [async_aggregation_helper](jobs/app/custom/aggregators/async_aggregation_helper.py)
 > ● Modified `add()` :  
->&ensp;&ensp;In this file, the [add()](jobs/app/custom/aggregators/async_aggregation_helper.py#L47) function stores the results submitted by the client in a queue. Compared to the [add()](https://github.com/NVIDIA/NVFlare/blob/2.4/nvflare/app_common/aggregators/weighted_aggregation_helper.py#L47) in `the WeightedAggregationHelper` , this version includes an additional `site_round` parameter, which records the number of epochs the client has trained in the current round. Additionally, the model parameters are no longer weighted and accumulated when stored.  
+>&ensp;&ensp;In this file, the [add()](jobs/app/custom/aggregators/async_aggregation_helper.py#L47) function stores the results submitted by the client in a queue. Compared to the [add()](https://github.com/NVIDIA/NVFlare/blob/2.4/nvflare/app_common/aggregators/weighted_aggregation_helper.py#L47) in `the WeightedAggregationHelper` , this version this version no longer weights and accumulates the model parameters when storing them.  
 
 > ● Added `func_s()`:  
 >&ensp;&ensp;[func_s()](jobs/app/custom/aggregators/async_aggregation_helper.py#L93) calculates the aggregation weight. It initializes different aggregation methods and their hyperparameters based on the `config_staleness.json` .
@@ -52,7 +52,7 @@ To implement asynchronous federated learning, this example replaces the original
 ### [fedasync_aggregator](jobs/app/custom/aggregators/fedasync_aggregator.py)
 
 > ● Modified `accept()` :  
->&ensp;&ensp;Based on the [accept()](https://github.com/NVIDIA/NVFlare/blob/2.4/nvflare/app_common/aggregators/intime_accumulate_model_aggregator.py#L165) from the `InTimeAccumulateWeightedAggregator`, a new step has been added in the modified [accept()](jobs/app/custom/aggregators/fedasync_aggregator.py#L165) to track the number of training rounds for each site. This information is then passed to the `accept()` of the `DXOAsyncAggregator`.
+>&ensp;&ensp;Based on the [accept()](https://github.com/NVIDIA/NVFlare/blob/2.4/nvflare/app_common/aggregators/intime_accumulate_model_aggregator.py#L165) from the `InTimeAccumulateWeightedAggregator`, a new step has been added in the modified [accept()](jobs/app/custom/aggregators/fedasync_aggregator.py#L165) to track the number of training rounds for each client. 
 
 > ● Modified `aggregate()` :  
 >&ensp;&ensp;Add a new parameter, `global_model`, to the original [aggregate()](https://github.com/NVIDIA/NVFlare/blob/2.4/nvflare/app_common/aggregators/intime_accumulate_model_aggregator.py#L223). [aggregate()](jobs/app/custom/aggregators/fedasync_aggregator.py#L233) now calls the `aggregate()`  from the`DXOAsyncAggregator` to obtain the updated model and the names of the clients that participated in the aggregation.
@@ -67,7 +67,7 @@ pip install -r ./requirements.txt
 
 ##  Download and split the CIFAR-10 dataset
 
-We use [FedLab](https://github.com/SMILELab-FL/FedLab) to split the CIFAR-10 dataset. After splitting the data, the proportion of data allocated to each client is calculated and written into the weights parameter in the config_staleness.json file.
+We use [FedLab](https://github.com/SMILELab-FL/FedLab) to split the CIFAR-10 dataset. After splitting the data, the proportion of data allocated to each client is calculated and written into the `weights` parameter in the `config_staleness.json`.
 
 ```bash
 python jobs/app/custom/data/data_splitter.py --num_clients 6  --balance True
@@ -81,11 +81,11 @@ We are using NVFlare's FL simulator to run the experiments.
 
 ### Prepare  configs
 
-This example is a modification based on the [hello-pt](https://github.com/NVIDIA/NVFlare/tree/2.4/examples/hello-world/hello-pt) example. We have made changes to some parameter settings in `config_ded_client.json` and `config_ded_server.json`, and add [config_staleness.json](jobs/app/config/config_staleness.json). This new configuration file includes five key parameters: `staleness`, `alpha`, `a`, `b`, and `weights`.
+This example is a modification based on the [hello-pt](https://github.com/NVIDIA/NVFlare/tree/2.4/examples/hello-world/hello-pt) example. We have made changes to some parameter settings in `config_fed_client.json` and `config_fed_server.json`, and add [config_staleness.json](jobs/app/config/config_staleness.json). This new configuration file includes four key parameters: `staleness`, `alpha`, `a`, and `weights`.
 
->`staleness`: There are four options for staleness calculation: constant, hinge, polynomial, and data_weighted.
-`alpha, a, b`: These are hyperparameters used in the staleness calculation formulas.  
-`weights`: This parameter is automatically populated when running the `data_splitter`, reflecting the data distribution among clients.
+>`staleness`: There are three options for staleness calculation: constant, poly, and data_weighted.  
+`alpha, a`: These are hyperparameters used in the staleness calculation formulas.  
+`weights`: This parameter is automatically populated when running the data_splitter.py, reflecting the data distribution among clients.
 
 The specific formulas for calculating staleness are as follows:
 
@@ -93,14 +93,9 @@ The specific formulas for calculating staleness are as follows:
 
 $$ Constant:s(t-\tau) = \alpha$$
 $$ Data\_weight: s(t-\tau) = \frac{client\_ data}{total\_ data} $$
-$$
-Hinge:  s(t-\tau) = 
-\begin{cases} 
-\alpha & \text{if } t-\tau \leq b, \\
-\frac{\alpha}{a(t-\tau-b)+1} & \text{otherwise}.
-\end{cases}
-$$
 $$ Polynomial: s(t-\tau) = \alpha(t-\tau+1)^{-a}$$  
+
+Here, $t$ represents the current round in the federated learning process, and $\tau$ denotes the round at which the client last updated its local model.  
 
 For example, if you want to make staleness constant, you can modify the `config_staleness.json` in the following way:
 
@@ -112,33 +107,57 @@ For example, if you want to make staleness constant, you can modify the `config_
     ......
   }
 ```
+If you want to use the `poly` function to calculate staleness, you can modify the `config_staleness.json` in the following way:
 
+
+```
+{
+    "staleness": "poly",
+    "alpha": 0.5,
+    "a":0.5
+    ......
+  }
+```
 
 
 ### Use NVFlare simulator to run the experiments
 
-In this example, we run six clients on 2 GPU (NVIDIA RTX 4090) with three threads `-t 6`. The GPU memory is 12 GB. We put the workspace in `/tmp` folderwith three threads `-t 3`.  We put the workspace in `/tmp` folder.
+In this example, we run six clients on 2 GPU (NVIDIA RTX 4090) with six threads `-t 6`. The GPU memory is 12 GB. We put the workspace in `/tmp` folder.
 
 ```
 nvflare simulator -w /tmp/nvflare/ -n 6 -t 6 -gpu 0,0,0,1,1,1 jobs
 ```
- **_NOTE:_**  The arguments after `-n` in this command need to be consistent with `num_client` in `prepare_data.sh`
+ **_NOTE:_**  The arguments after `-n` in this command need to be consistent with `num_client` in `data_splitter.py`
 
 
 ## Results on six clients for FedAsync
-In this experiment, we studied two methods for partitioning the CIFAR-10 dataset over three clients: balance_iid and unbalance_iid. For the test set, the balance_iid partitioning method was consistently applied. The default settings for all experiments were set to 200 rounds (num_round=200) and a learning rate of 0.01 (lr=0.01).
+In this experiment, we studied two methods for partitioning the CIFAR-10 dataset over six clients: `balance_iid` and `unbalance_iid`. For the test set, the balance_iid partitioning method was consistently applied. The default settings for all experiments were set to 180 rounds (num_round=180) and a learning rate of 0.01 (lr=0.001).
 
 ### Testing score
-The results of Cross Site Model Evaluation for several cases are given here.
-#### balance_iid
-![validation](./fig/balance_acc.png)
+Under the `balance_iid data` partitioning method, the results of cross site evaluation are as follows:
+
+![site1](./fig/site1.png)
+
+![site2](./fig/site2.png)
+
+![site3](./fig/site3.png)
+
+![site4](./fig/site4.png)
+
+![site5](./fig/site5.png)
+
+![site6](./fig/site6.png)
 
 
-
-> *For fedasync+const,we take `α=0.5` .For fedasync+poly,we take `α=0.6`,`a=0.2` . For fedasync+hinge, we take `α=0.9`,`a=0.01`,`b=6`.*
+> *For fedasync+const,we take `α=0.5` .For fedasync+poly,we take `α=0.6`,`a=0.2`.*
 
 ### Loss curve on each site
-The following figure shows the loss curves for each client after partitioning the CIFAR-10 dataset into 6 clients using the `unbalance_iid` method, under the `fedasync+const`.
+When the CIFAR-10 dataset is partitioned using the `unbalance_iid` method, the number of images per class in each client's data is shown in the figure below.
+
+![data_partition](./fig/unbalance_iid_data.png)
+
+The loss curves presented here are obtained using the `fedasync+data_weighted`.
+
 ![loss curve](./fig/constloss.png)
 
 

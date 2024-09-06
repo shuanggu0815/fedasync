@@ -13,12 +13,10 @@
 # limitations under the License.
 
 import torch
-from trainer.simple_network import SimpleNetwork
-from trainer.resnet import ResNet, BasicBlock
 from torch.utils.data import DataLoader, Subset
 from torchvision.datasets import CIFAR10
-from torchvision.transforms import Compose, Normalize, ToTensor
-from torchvision.models import resnet18
+from torchvision.transforms import Compose, Normalize, ToTensor,Resize
+from torchvision import models
 import numpy as np
 
 from nvflare.apis.dxo import DXO, DataKind, from_shareable
@@ -43,7 +41,9 @@ class Cifar10Validator(Executor):
         # self.model = resnet18()
         # self.model.conv1 = torch.nn.Conv2d(3, 64, 3, stride=1, padding=1, bias=False)
         # self.model.fc = torch.nn.Linear(in_features=512, out_features=10, bias=True)
-        self.model = ResNet(BasicBlock, [2,2,2,2], 10)
+        self.model = models.resnet.resnet18(weights=models.resnet.ResNet18_Weights.IMAGENET1K_V1)
+        in_fea = self.model.fc.in_features
+        self.model.fc = torch.nn.Linear(in_fea, 10) 
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.model.to(self.device)
 
@@ -51,6 +51,7 @@ class Cifar10Validator(Executor):
         transforms = Compose(
             [
                 ToTensor(),
+                Resize(224),
                 Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
             ]
         )

@@ -53,7 +53,7 @@
         "path": "workflows.scatter_and_gather_async.ScatterAndGatherAsync",
         "args": {
             "min_clients" : 6,
-            "num_rounds" : 1200,
+            "num_rounds" : 30,
             "start_round": 0,
             "wait_time_after_min_received": 10,
             "aggregator_id": "aggregator",
