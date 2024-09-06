@@ -89,11 +89,15 @@ This example is a modification based on the [hello-pt](https://github.com/NVIDIA
 
 The specific formulas for calculating staleness are as follows:
 
-
-
-$$ Constant:s(t-\tau) = \alpha$$
-$$ Data\_weight: s(t-\tau) = \frac{client\_ data}{total\_ data} $$
-$$ Polynomial: s(t-\tau) = \alpha(t-\tau+1)^{-a}$$  
+```math
+Constant:s(t-\tau) = \alpha
+```
+```math
+Data\_weight: s(t-\tau) = \frac{client\_ data}{total\_ data}
+```
+```math
+Polynomial: s(t-\tau) = \alpha(t-\tau+1)^{-a}
+```
 
 Here, $t$ represents the current round in the federated learning process, and $\tau$ denotes the round at which the client last updated its local model.  
 
