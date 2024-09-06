@@ -21,38 +21,36 @@ To implement asynchronous federated learning, this example replaces the original
 
 
 ### [scatter_and_gather_async](jobs/app/custom/workflows/scatter_and_gather_async.py)
->&ensp;&ensp;To support asynchronous federated learning, we modified the workflow so that it's no longer necessary to wait for all clients to submit their local model parameters before aggregation. Specifically, we replaced the [broadcast_and_wait()](https://github.com/NVIDIA/NVFlare/blob/2.4/nvflare/app_common/workflows/scatter_and_gather.py#L253)  with the [send()](jobs/app/custom/workflows/scatter_and_gather_async.py#L283) , allowing the server to send the updated global model to clients immediately. However, it's important to note that in the first round (when current_round is equal to start_round), the [broadcast()](jobs/app/custom/workflows/scatter_and_gather_async.py#L261)  must be used to send the training task to all clients.   
+>&ensp;&ensp;To support asynchronous federated learning, we modified the workflow so that it's no longer necessary to wait for all clients to submit their local model parameters before aggregation. Specifically, we replaced the [broadcast_and_wait()](https://github.com/NVIDIA/NVFlare/blob/2.4/nvflare/app_common/workflows/scatter_and_gather.py#L253) method with the [send()](jobs/app/custom/workflows/scatter_and_gather_async.py#L283) method, allowing the server to send the updated global model to specified clients without blocking. However, it's important to note that in the first round (when current_round is equal to start_round), the [broadcast()](jobs/app/custom/workflows/scatter_and_gather_async.py#L261) method is used for broadcasting the training task to all clients.   
 >&ensp;&ensp;Since both the `broadcast()` and `send()` are non-blocking,  it's necessary to wait until at least one client has uploaded its locally trained model parameters before starting the aggregation process.  
->&ensp;&ensp;Additionally, to ensure the global model is sent to the appropriate clients in an orderly manner, we store each client that participates in the aggregation in a queue, which is then used to determine the target clients for receiving the updated global model.
-
+>&ensp;&ensp;Additionally, to ensure the global model is sent to the appropriate clients in an orderly manner, we store each client that participates in the aggregation sequentially in a queue, which is then used to determine the target clients to send updated global model to.
 
 
 ### [async_aggregation_helper](jobs/app/custom/aggregators/async_aggregation_helper.py)
 > ● Modified `add()` :  
->&ensp;&ensp;In this file, the [add()](jobs/app/custom/aggregators/async_aggregation_helper.py#L47) function stores the results submitted by the client in a queue. Compared to the [add()](https://github.com/NVIDIA/NVFlare/blob/2.4/nvflare/app_common/aggregators/weighted_aggregation_helper.py#L47) in `the WeightedAggregationHelper` , this version this version no longer weights and accumulates the model parameters when storing them.  
+>&ensp;&ensp;In this file, the [add()](jobs/app/custom/aggregators/async_aggregation_helper.py#L47) function stores the results submitted by the client in a queue. Compared to the [add()](https://github.com/NVIDIA/NVFlare/blob/2.4/nvflare/app_common/aggregators/weighted_aggregation_helper.py#L47) in `the WeightedAggregationHelper`, this version of the function no longer weightedly accumulates the model parameters when accepting weights from clients.  
 
 > ● Added `func_s()`:  
->&ensp;&ensp;[func_s()](jobs/app/custom/aggregators/async_aggregation_helper.py#L93) calculates the aggregation weight. It initializes different aggregation methods and their hyperparameters based on the `config_staleness.json` .
+>&ensp;&ensp;[func_s()](jobs/app/custom/aggregators/async_aggregation_helper.py#L93) calculates the aggregation weight (see `get_result()` below). It initializes different aggregation methods with hyperparameters defined in `config_staleness.json`.
 
 > ● Modified `get_result()` :  
->&ensp;&ensp;In asynchronous federated learning, the global model is updated according to the formula: $x_t \leftarrow (1 - \alpha_t) x_{t-1} + \alpha_t x_{new}$, where $\alpha_t$ is the aggregation weight calculated using `func_s()` and $x_t$ is global model in the $t_
-{th}$ epoch on serve. [`get_result()](jobs/app/custom/aggregators/async_aggregation_helper.py#L69) combines the global model with the local models based on $\alpha_t$ to produce the new global model.  
+>&ensp;&ensp;In asynchronous federated learning, the global model is updated according to the formula: $x_t \leftarrow (1 - \alpha_t) x_{t-1} + \alpha_t x_{new}$, where $\alpha_t$ is the aggregation weight calculated using `func_s()` and $x_t$ is global model at the $t$-th epoch stored on server. The method [`get_result()`](jobs/app/custom/aggregators/async_aggregation_helper.py#L69) aggregates the global and local models based on $\alpha_t$ and provides the aggregated model.  
  >&ensp;&ensp;This function returns the updated weights along with information about the clients that participated in the aggregation.
 
 
 ### [dxo_async_aggregators](jobs/app/custom/aggregators/dxo_async_aggregator.py)
 
 > ● Modified `accept()` :  
->&ensp;&ensp;Remove the step from the original [accept()](https://github.com/NVIDIA/NVFlare/blob/2.4/nvflare/app_common/aggregators/dxo_aggregator.py#L70) in the `dxo_aggregator`that checks whether the model parameters submitted by the client belong to the current round. [accpet()](jobs/app/custom/aggregators/dxo_async_aggregator.py#L68) now calls the `add()` from the `AsyncAggregationHelper` to store the information submitted by the client.
+>&ensp;&ensp;Round correspondence checking for the submitted model is removed from the [accept()](https://github.com/NVIDIA/NVFlare/blob/2.4/nvflare/app_common/aggregators/dxo_aggregator.py#L70) implementation in the `dxo_aggregator`. The [accpet()](jobs/app/custom/aggregators/dxo_async_aggregator.py#L68) method now calls `add()` function in a new class `AsyncAggregationHelper` to store the information of the submitting client.
 
 > ● Modified `aggregate()` :  
->&ensp;&ensp;Add two new parameters to the original [aggregate()](https://github.com/NVIDIA/NVFlare/blob/2.4/nvflare/app_common/aggregators/dxo_aggregator.py#L164) : `global_model` and `config_staleness_filename`. [aggregate()](jobs/app/custom/aggregators/dxo_async_aggregator.py#L161) now calls the `get_result()` from the `AsyncAggregationHelper` to obtain the updated model and the information about the clients that participated in the aggregation.
+>&ensp;&ensp;Two new parameters are added to the original [aggregate()](https://github.com/NVIDIA/NVFlare/blob/2.4/nvflare/app_common/aggregators/dxo_aggregator.py#L164) : `global_model` and `config_staleness_filename`. [aggregate()](jobs/app/custom/aggregators/dxo_async_aggregator.py#L161) now calls `get_result()` in `AsyncAggregationHelper` to obtain the updated model and the information about the clients that participated in the aggregation.
 
 
 ### [fedasync_aggregator](jobs/app/custom/aggregators/fedasync_aggregator.py)
 
 > ● Modified `accept()` :  
->&ensp;&ensp;Based on the [accept()](https://github.com/NVIDIA/NVFlare/blob/2.4/nvflare/app_common/aggregators/intime_accumulate_model_aggregator.py#L165) from the `InTimeAccumulateWeightedAggregator`, a new step has been added in the modified [accept()](jobs/app/custom/aggregators/fedasync_aggregator.py#L165) to track the number of training rounds for each client. 
+>&ensp;&ensp;Based on the original [accept()](https://github.com/NVIDIA/NVFlare/blob/2.4/nvflare/app_common/aggregators/intime_accumulate_model_aggregator.py#L165) in `InTimeAccumulateWeightedAggregator`, a few lines of codes are added in the modified [accept()](jobs/app/custom/aggregators/fedasync_aggregator.py#L165) to track the number of training rounds for each client. 
 
 > ● Modified `aggregate()` :  
 >&ensp;&ensp;Add a new parameter, `global_model`, to the original [aggregate()](https://github.com/NVIDIA/NVFlare/blob/2.4/nvflare/app_common/aggregators/intime_accumulate_model_aggregator.py#L223). [aggregate()](jobs/app/custom/aggregators/fedasync_aggregator.py#L233) now calls the `aggregate()`  from the`DXOAsyncAggregator` to obtain the updated model and the names of the clients that participated in the aggregation.
