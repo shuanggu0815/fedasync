@@ -138,7 +138,7 @@ nvflare simulator -w /tmp/nvflare/ -n 6 -t 6 -gpu 0,0,0,1,1,1 jobs
 In this experiment, we studied two methods for partitioning the CIFAR-10 dataset over six clients: `balance_iid` and `unbalance_iid`. For the test set, the balance_iid partitioning method was consistently applied. The default settings for all experiments were set to 180 rounds (num_round=180) and a learning rate of 0.01 (lr=0.001).
 
 ### Testing score
-Under the `balance_iid data` partitioning method, the results of cross site evaluation are as follows:
+Under the `balance_iid` data partitioning method, the results of cross site evaluation are as follows:
 
 ![site1](./fig/site1.png)
 
@@ -153,7 +153,7 @@ Under the `balance_iid data` partitioning method, the results of cross site eval
 ![site6](./fig/site6.png)
 
 
-> *For fedasync+const,we take `α=0.5` .For fedasync+poly,we take `α=0.6`,`a=0.2`.*
+> *For fedasync+const,we take `α=0.5` .For fedasync+poly,we take `α=0.5`,`a=0.5`.*
 
 ### Loss curve on each site
 When the CIFAR-10 dataset is partitioned using the `unbalance_iid` method, the number of images per class in each client's data is shown in the figure below.
