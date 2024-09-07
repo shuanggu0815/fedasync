@@ -41,10 +41,10 @@ To implement asynchronous federated learning, this example replaces the original
 ### [dxo_async_aggregators](jobs/app/custom/aggregators/dxo_async_aggregator.py)
 
 > ● Modified `accept()` :  
->&ensp;&ensp;Round correspondence checking for the submitted model is removed from the [accept()](https://github.com/NVIDIA/NVFlare/blob/2.4/nvflare/app_common/aggregators/dxo_aggregator.py#L70) implementation in the `dxo_aggregator`. The [accpet()](jobs/app/custom/aggregators/dxo_async_aggregator.py#L68) method now calls `add()` function in a new class `AsyncAggregationHelper` to store the information of the submitting client.
+>&ensp;&ensp;Round correspondence checking for the submitted model is removed from the [accept()](https://github.com/NVIDIA/NVFlare/blob/2.4/nvflare/app_common/aggregators/dxo_aggregator.py#L70) implementation in the `dxo_aggregator`. The [accpet()](jobs/app/custom/aggregators/dxo_async_aggregator.py#L68) method now calls `add()` function from a new class `AsyncAggregationHelper` to store the information of the submitting client.
 
 > ● Modified `aggregate()` :  
->&ensp;&ensp;Two new parameters are added to the original [aggregate()](https://github.com/NVIDIA/NVFlare/blob/2.4/nvflare/app_common/aggregators/dxo_aggregator.py#L164) : `global_model` and `config_staleness_filename`. [aggregate()](jobs/app/custom/aggregators/dxo_async_aggregator.py#L161) now calls `get_result()` in `AsyncAggregationHelper` to obtain the updated model and the information about the clients that participated in the aggregation.
+>&ensp;&ensp;Two new parameters are added to the original [aggregate()](https://github.com/NVIDIA/NVFlare/blob/2.4/nvflare/app_common/aggregators/dxo_aggregator.py#L164) : `global_model` and `config_staleness_filename`. [aggregate()](jobs/app/custom/aggregators/dxo_async_aggregator.py#L161) now calls `get_result()` from `AsyncAggregationHelper` to obtain the updated model and the information about the clients that participated in the aggregation.
 
 
 ### [fedasync_aggregator](jobs/app/custom/aggregators/fedasync_aggregator.py)
@@ -53,7 +53,7 @@ To implement asynchronous federated learning, this example replaces the original
 >&ensp;&ensp;Based on the original [accept()](https://github.com/NVIDIA/NVFlare/blob/2.4/nvflare/app_common/aggregators/intime_accumulate_model_aggregator.py#L165) in `InTimeAccumulateWeightedAggregator`, a few lines of codes are added in the modified [accept()](jobs/app/custom/aggregators/fedasync_aggregator.py#L165) to track the number of training rounds for each client. 
 
 > ● Modified `aggregate()` :  
->&ensp;&ensp;Add a new parameter, `global_model`, to the original [aggregate()](https://github.com/NVIDIA/NVFlare/blob/2.4/nvflare/app_common/aggregators/intime_accumulate_model_aggregator.py#L223). [aggregate()](jobs/app/custom/aggregators/fedasync_aggregator.py#L233) now calls the `aggregate()`  from the`DXOAsyncAggregator` to obtain the updated model and the names of the clients that participated in the aggregation.
+>&ensp;&ensp;Add a new parameter, `global_model`, to the original [aggregate()](https://github.com/NVIDIA/NVFlare/blob/2.4/nvflare/app_common/aggregators/intime_accumulate_model_aggregator.py#L223). [aggregate()](jobs/app/custom/aggregators/fedasync_aggregator.py#L233) now calls the `aggregate()`  from the `DXOAsyncAggregator` to obtain the updated model and the names of the clients that participated in the aggregation.
 
 ## Install requirements
 
@@ -65,13 +65,13 @@ pip install -r ./requirements.txt
 
 ##  Download and split the CIFAR-10 dataset
 
-We use [FedLab](https://github.com/SMILELab-FL/FedLab) to split the CIFAR-10 dataset. After splitting the data, the proportion of data allocated to each client is calculated and written into the `weights` parameter in the `config_staleness.json`.
+We use [FedLab](https://github.com/SMILELab-FL/FedLab) to split the CIFAR-10 dataset. After splitting the data, the proportion of data allocated to each client is calculated and saved into `config_staleness.json` with key `weights`.
 
 ```bash
-python jobs/app/custom/data/data_splitter.py --num_clients 6  --balance True
+python jobs/app/custom/data/data_splitter.py --num_clients 6 --balance True
 ```
 
-> **_NOTE:_** This script supports both `balance_iid` (balanced IID) and `unbalance_iid` (unbalanced IID) data splits. To toggle between them, use the `balance` parameter : set `balance=True` for balanced IID data split, and set `balance=False` for unbalanced IID data split. You can also specify the number of clients by adjusting the `num_clients` parameter in the `prepare_data.sh` file.
+> **_NOTE:_** This script supports both `balance_iid` (balanced IID) and `unbalance_iid` (unbalanced IID) data splits. To toggle between them, use the `balance` argument: set `balance=True` for balanced IID data split, and set `balance=False` for unbalanced IID data split. You can also specify the number of clients with the argument `num_clients`.
 
 ## Run simulated FL experiments
 
@@ -79,52 +79,51 @@ We are using NVFlare's FL simulator to run the experiments.
 
 ### Prepare  configs
 
-This example is a modification based on the [hello-pt](https://github.com/NVIDIA/NVFlare/tree/2.4/examples/hello-world/hello-pt) example. We have made changes to some parameter settings in `config_fed_client.json` and `config_fed_server.json`, and add [config_staleness.json](jobs/app/config/config_staleness.json). This new configuration file includes four key parameters: `staleness`, `alpha`, `a`, and `weights`.
+This example is a modification based on the [hello-pt](https://github.com/NVIDIA/NVFlare/tree/2.4/examples/hello-world/hello-pt) example. Changes are made to some parameter settings in `config_fed_client.json` and `config_fed_server.json`, and an additional [`config_staleness.json`](jobs/app/config/config_staleness.json). This additional configuration file includes four key parameters: `staleness`, `alpha`, `a`, and `weights`.
 
->`staleness`: There are three options for staleness calculation: constant, poly, and data_weighted.  
-`alpha, a`: These are hyperparameters used in the staleness calculation formulas.  
-`weights`: This parameter is automatically populated when running the data_splitter.py, reflecting the data distribution among clients.
+> * `staleness`: There are three options for staleness calculation, namely, `constant`, `poly`, and `data_weighted`.  
+> * `alpha, a`: These are hyperparameters used in the staleness calculation formulas.  
+> * `weights`: This parameter is automatically populated when running the `data_splitter.py`, reflecting the data distribution among clients.
 
 The specific formulas for calculating staleness are as follows:
 
 ```math
-Constant:s(t-\tau) = \alpha
-```
-```math
-Data\_weight: s(t-\tau) = \frac{client\_ data}{total\_ data}
-```
-```math
-Polynomial: s(t-\tau) = \alpha(t-\tau+1)^{-a}
+\begin{aligned}
+&{\rm Constant}: &&s(t-\tau) = \alpha\\
+
+&{\rm Data\_weight}: &&s(t-\tau) = \frac{client\_ data}{total\_ data} \\
+
+&{\rm Polynomial}: &&s(t-\tau) = \alpha(t-\tau+1)^{-a}
+\end{aligned}
 ```
 
-Here, $t$ represents the current round in the federated learning process, and $\tau$ denotes the round at which the client last updated its local model.  
+Here, $t$ represents the current (global) round in the federated learning process, and $\tau$ denotes the round at which the client last updated its local model.  
 
 For example, if you want to make staleness constant, you can modify the `config_staleness.json` in the following way:
 
-
-```
+```json
 {
-    "staleness": "const",
-    "alpha": 0.5,
-    ......
-  }
+  "staleness": "const",
+  "alpha": 0.5,
+  ......
+}
 ```
+
 If you want to use the `poly` function to calculate staleness, you can modify the `config_staleness.json` in the following way:
 
-
-```
+```json
 {
-    "staleness": "poly",
-    "alpha": 0.5,
-    "a":0.5
-    ......
-  }
+  "staleness": "poly",
+  "alpha": 0.5,
+  "a": 0.5
+  ......
+}
 ```
 
 
 ### Use NVFlare simulator to run the experiments
 
-In this example, we run six clients on 2 GPU (NVIDIA RTX 4090) with six threads `-t 6`. The GPU memory is 12 GB. We put the workspace in `/tmp` folder.
+In this example, we run six clients on 2 GPU (NVIDIA RTX 4090 with 24 GB memory) with six threads `-t 6`. We put the workspace in `/tmp` folder.
 
 ```
 nvflare simulator -w /tmp/nvflare/ -n 6 -t 6 -gpu 0,0,0,1,1,1 jobs
@@ -135,7 +134,7 @@ nvflare simulator -w /tmp/nvflare/ -n 6 -t 6 -gpu 0,0,0,1,1,1 jobs
 ## Results on six clients for FedAsync
 In this experiment, we studied two methods for partitioning the CIFAR-10 dataset over six clients: `balance_iid` and `unbalance_iid`. For the test set, the balance_iid partitioning method was consistently applied. The default settings for all experiments were set to 180 rounds (num_round=180) and a learning rate of 0.01 (lr=0.001).
 
-### Testing score
+### Testing scores
 Under the `balance_iid` data partitioning method, the results of cross site evaluation are as follows:
 
 ![site1](./fig/site1.png)
@@ -151,6 +150,8 @@ Under the `balance_iid` data partitioning method, the results of cross site eval
 ![site6](./fig/site6.png)
 
 
+> Grids in shadow are personalized results, i.e., results for local models tested on local test sets.
+> 
 > *For fedasync+const,we take `α=0.5` .For fedasync+poly,we take `α=0.5`,`a=0.5`.*
 
 ### Loss curve on each site
