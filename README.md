@@ -164,13 +164,3 @@ The loss curves presented here are obtained using the `fedasync+data_weighted`.
 ![loss curve](./fig/constloss.png)
 
 
-
-BibTeX
-```
-@article{xie2019asynchronous,
-  title={Asynchronous federated optimization},
-  author={Xie, Cong and Koyejo, Sanmi and Gupta, Indranil},
-  journal={arXiv preprint arXiv:1903.03934},
-  year={2019}
-}
-```
