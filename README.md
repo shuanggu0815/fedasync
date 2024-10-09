@@ -154,7 +154,7 @@ Under the `balance_iid` data partitioning method, the results of cross site eval
 > 
 > *For fedasync+const,we take `α=0.5` .For fedasync+poly,we take `α=0.5`,`a=0.5`.*
 
-### Execution Time 
+### Execution time 
 
 Under the `balance_iid` data partitioning method, we also calculated the execution time for four different federated learning algorithms.
 
