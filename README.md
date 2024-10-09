@@ -154,6 +154,19 @@ Under the `balance_iid` data partitioning method, the results of cross site eval
 > 
 > *For fedasync+const,we take `α=0.5` .For fedasync+poly,we take `α=0.5`,`a=0.5`.*
 
+### Execution Time 
+
+Under the `balance_iid` data partitioning method, we also calculated the execution time for four different federated learning algorithms.
+
+| Algorithm              | Total  Time                   |
+|------------------------|-------------------------------|
+| fedavg                 | 3 hours 19 minutes 38 seconds |
+| fedasync + const       | 1 hour 1 minute 48 seconds    |
+| fedasync + poly        | 1 hour 1 minute 31 seconds    |
+| fedasync + data_weight | 1 hour 1 minute 32 seconds    |
+
+The results show that the asynchronous federated learning algorithms consistently exhibit shorter total training times compared to fedavg. 
+
 ### Loss curve on each site
 When the CIFAR-10 dataset is partitioned using the `unbalance_iid` method, the number of images per class in each client's data is shown in the figure below.
 
